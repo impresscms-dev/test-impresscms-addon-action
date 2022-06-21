@@ -1,0 +1,167 @@
+name: 'Test ImpressCMS module'
+description: 'About GitHub action that tries to help to test ImpressCMS module'
+
+# https://actions-cool.github.io/github-action-branding/
+branding:
+  icon: 'check'
+  color: 'gray-dark'
+
+inputs:
+  impresscms_version:
+    description: "ImpressCMS version tag to test module with"
+    default: v2.0.0-alpha.12
+    required: false
+  php_version:
+    description: "PHP version to use"
+    default: 7.4
+  composer_version:
+    description: "PHP composer version to use for test"
+    default: 2
+    required: false
+  post_max_size:
+    description: "Max post file size"
+    default: 256M
+    required: false
+  extra_php_extensions:
+    descriptions: "Extra comma separated extra PHP extensions list that is required by module"
+    default: ""
+    required: false
+  mysql_version:
+    description: "MySQL version to use"
+    default: 8.0
+    required: false
+
+runs:
+  using: 'composite'
+
+  services:
+    mysql:
+      image: mysql:${{ inputs.mysql_version }}
+      env:
+        MYSQL_ROOT_PASSWORD: icms
+        MYSQL_DATABASE: icms
+      ports:
+        - 3306
+      options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+
+  steps:
+    - name: Setting IMPRESSCMS_TEMP_PATH ENV var...
+      run: |
+        echo "IMPRESSCMS_TEMP_PATH=${{ runner.temp }}/icmsweb-${{ github.sha }}-${{ github.run_id}}-${{ github.github.run_attempt }}" >> $GITHUB_ENV
+      shell: bash
+
+    - name: Install PHP
+      uses: shivammathur/setup-php@master
+      with:
+        php-version: ${{ inputs.php_version }}
+        extensions: curl, gd, pdo_mysql, json, mbstring, pcre, session, ${{ inputs.extra_php_extensions }}
+        ini-values: post_max_size=${{ inputs.post_max_size }}
+        coverage: none
+        tools: composer:v${{ inputs.composer_version }}
+
+    - name: Creating ImpressCMS project...
+      run: composer create-project --stability=dev impresscms/impresscms "${{ env.IMPRESSCMS_TEMP_PATH }}" ${{ inputs.impresscms_version }}
+      shell: bash
+
+    - name: Install Composer dependencies (with dev)
+      run: composer install --no-progress --no-suggest --prefer-dist --optimize-autoloader
+      shell: bash
+      working-directory: ${{ env.IMPRESSCMS_TEMP_PATH }}
+
+    - name: Installing ImpressCMS
+      env:
+        URL: http://localhost
+        DB_TYPE: pdo.mysql
+        DB_HOST: 127.0.0.1
+        DB_USER: root
+        DB_PASS: icms
+        DB_PCONNECT: 0
+        DB_NAME: icms
+        DB_CHARSET: utf8
+        DB_COLLATION: utf8_general_ci
+        DB_PREFIX: icms
+        DB_PORT: ${{ job.services.mysql.ports['3306'] }}
+        INSTALL_ADMIN_PASS: test
+        INSTALL_ADMIN_LOGIN: test
+        INSTALL_ADMIN_NAME: test
+        INSTALL_ADMIN_EMAIL: noreply@impresscms.org
+        INSTALL_LANGUAGE: english
+      run: |
+        chmod -R 777 ./storage
+        ./bin/phoenix migrate -vvv
+      working-directory: ${{ env.IMPRESSCMS_TEMP_PATH }}
+      shell: bash
+
+    - name: Adding local composer repo...
+      run: "composer config repositories.local_module '{\"type\": \"path\",\"url\": \"${{ github.workspace }}\"}'"
+      shell: bash
+      working-directory: ${{ env.IMPRESSCMS_TEMP_PATH }}
+
+    - name: Generating APP_KEY...
+      run: |
+        echo "APP_KEY=`php ./bin/console generate:app:key`" >> $GITHUB_ENV
+      shell: bash
+      working-directory: ${{ env.IMPRESSCMS_TEMP_PATH }}
+
+    - name: Getting module package name...
+      run: |
+        if [ -f "composer.json" ]; then
+          echo "IMPRESSCMS_MODULE_NAME=$(composer config name)" >> $GITHUB_ENV
+          echo "IMPRESSCMS_MODULE_TYPE=composer" >> $GITHUB_ENV
+        else
+          echo "IMPRESSCMS_MODULE_TYPE=legacy" >> $GITHUB_ENV
+        fi;
+        echo "IMPRESSCMS_MODULE_DIRECTORY=${PWD##*/}" >> $GITHUB_ENV
+        if [ -d "tests" ]; then
+          echo "IMPRESSCMS_TEST_FOLDER=./tests/" >> $GITHUB_ENV
+        elif [ -d "test" ]; then
+          echo "IMPRESSCMS_TEST_FOLDER=./test/" >> $GITHUB_ENV
+        fi;
+      shell: bash
+
+    - name: Copying legacy module...
+      run: cp "${{ github.workspace }}"/* ./modules/$IMPRESSCMS_MODULE_DIRECTORY/
+      shell: bash
+      if: env.IMPRESSCMS_MODULE_TYPE == 'legacy'
+      working-directory: ${{ env.IMPRESSCMS_TEMP_PATH }}
+
+    - name: Installing legacy module...
+      run: php bin/console module:install ${{ env.IMPRESSCMS_MODULE_DIRECTORY }}
+      if: env.IMPRESSCMS_MODULE_TYPE == 'legacy'
+      working-directory: ${{ env.IMPRESSCMS_TEMP_PATH }}
+
+    - name: Installing composer module...
+      run: composer require ${{ env.IMPRESSCMS_MODULE_NAME }}
+      if: env.IMPRESSCMS_MODULE_TYPE == 'composer'
+      working-directory: ${{ env.IMPRESSCMS_TEMP_PATH }}
+
+    - name: Testing with PHPUnit
+      env:
+        URL: http://localhost
+        DB_TYPE: pdo.mysql
+        DB_HOST: 127.0.0.1
+        DB_USER: root
+        DB_PASS: icms
+        DB_PCONNECT: 0
+        DB_NAME: icms
+        DB_CHARSET: utf8
+        DB_COLLATION: utf8_general_ci
+        DB_PREFIX: icms
+        DB_PORT: ${{ job.services.mysql.ports['3306'] }}
+      run: |        
+        ./bin/phpunit --testdox $IMPRESSCMS_TEST_FOLDER
+      shell: bash
+      working-directory: ${{ env.IMPRESSCMS_TEMP_PATH }}
+      if: env.IMPRESSCMS_TEST_FOLDER != ''
+
+    - name: Updating module...
+      run: php bin/console module:update ${{ env.IMPRESSCMS_MODULE_DIRECTORY }}
+      working-directory: ${{ env.IMPRESSCMS_TEMP_PATH }}
+
+    - name: Uninstalling module...
+      run: php bin/console module:uninstall ${{ env.IMPRESSCMS_MODULE_DIRECTORY }}
+      working-directory: ${{ env.IMPRESSCMS_TEMP_PATH }}
+
+    - name: Deleting temp folder...
+      run: rm -rf "${{ env.IMPRESSCMS_TEMP_PATH }}" || true
+      shell: bash
