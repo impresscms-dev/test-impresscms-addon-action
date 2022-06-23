@@ -1,5 +1,5 @@
-name: 'Test ImpressCMS module'
-description: 'About GitHub action that tries to help to test ImpressCMS module'
+name: 'Test ImpressCMS addon'
+description: 'About GitHub action that tries to help to test ImpressCMS addon'
 
 # https://actions-cool.github.io/github-action-branding/
 branding:
@@ -8,8 +8,11 @@ branding:
 
 inputs:
   impresscms_version:
-    description: "ImpressCMS version tag to test module with"
+    description: "ImpressCMS version tag to test addon with"
     default: v2.0.0-alpha.12
+    required: false
+  addon_type:
+    description: "Type of ImpressCMS addon"
     required: false
   php_version:
     description: "PHP version to use"
@@ -23,7 +26,7 @@ inputs:
     default: 256M
     required: false
   extra_php_extensions:
-    descriptions: "Extra comma separated extra PHP extensions list that is required by module"
+    descriptions: "Extra comma separated extra PHP extensions list that is required by addon"
     default: ""
     required: false
   mysql_version:
@@ -93,7 +96,7 @@ runs:
       shell: bash
 
     - name: Adding local composer repo...
-      run: "composer config repositories.local_module '{\"type\": \"path\",\"url\": \"${{ github.workspace }}\"}'"
+      run: "composer config repositories.local_addon '{\"type\": \"path\",\"url\": \"${{ github.workspace }}\"}'"
       shell: bash
       working-directory: ${{ env.IMPRESSCMS_TEMP_PATH }}
 
@@ -103,15 +106,15 @@ runs:
       shell: bash
       working-directory: ${{ env.IMPRESSCMS_TEMP_PATH }}
 
-    - name: Getting module package name...
+    - name: Getting {{ inputs.addon_type }} package name...
       run: |
         if [ -f "composer.json" ]; then
-          echo "IMPRESSCMS_MODULE_NAME=$(composer config name)" >> $GITHUB_ENV
-          echo "IMPRESSCMS_MODULE_TYPE=composer" >> $GITHUB_ENV
+          echo "IMPRESSCMS_ADDON_NAME=$(composer config name)" >> $GITHUB_ENV
+          echo "IMPRESSCMS_ADDON_TYPE=composer" >> $GITHUB_ENV
         else
-          echo "IMPRESSCMS_MODULE_TYPE=legacy" >> $GITHUB_ENV
+          echo "IMPRESSCMS_ADDON_TYPE=legacy" >> $GITHUB_ENV
         fi;
-        echo "IMPRESSCMS_MODULE_DIRECTORY=${PWD##*/}" >> $GITHUB_ENV
+        echo "IMPRESSCMS_ADDON_DIRECTORY=${PWD##*/}" >> $GITHUB_ENV
         if [ -d "tests" ]; then
           echo "IMPRESSCMS_TEST_FOLDER=./tests/" >> $GITHUB_ENV
         elif [ -d "test" ]; then
@@ -119,20 +122,20 @@ runs:
         fi;
       shell: bash
 
-    - name: Copying legacy module...
-      run: cp "${{ github.workspace }}"/* ./modules/$IMPRESSCMS_MODULE_DIRECTORY/
+    - name: Copying legacy {{ inputs.addon_type }}...
+      run: cp "${{ github.workspace }}"/* ./{{ inputs.addon_type }}s/$IMPRESSCMS_ADDON_DIRECTORY/
       shell: bash
-      if: env.IMPRESSCMS_MODULE_TYPE == 'legacy'
+      if: env.IMPRESSCMS_ADDON_TYPE == 'legacy'
       working-directory: ${{ env.IMPRESSCMS_TEMP_PATH }}
 
-    - name: Installing legacy module...
-      run: php bin/console module:install ${{ env.IMPRESSCMS_MODULE_DIRECTORY }}
-      if: env.IMPRESSCMS_MODULE_TYPE == 'legacy'
+    - name: Installing legacy {{ inputs.addon_type }}...
+      run: php bin/console {{ inputs.addon_type }}:install ${{ env.IMPRESSCMS_ADDON_DIRECTORY }}
+      if: env.IMPRESSCMS_ADDON_TYPE == 'legacy'
       working-directory: ${{ env.IMPRESSCMS_TEMP_PATH }}
 
-    - name: Installing composer module...
-      run: composer require ${{ env.IMPRESSCMS_MODULE_NAME }}
-      if: env.IMPRESSCMS_MODULE_TYPE == 'composer'
+    - name: Installing composer {{ inputs.addon_type }}...
+      run: composer require ${{ env.IMPRESSCMS_ADDON_NAME }}
+      if: env.IMPRESSCMS_ADDON_TYPE == 'composer'
       working-directory: ${{ env.IMPRESSCMS_TEMP_PATH }}
 
     - name: Testing with PHPUnit
@@ -154,12 +157,12 @@ runs:
       working-directory: ${{ env.IMPRESSCMS_TEMP_PATH }}
       if: env.IMPRESSCMS_TEST_FOLDER != ''
 
-    - name: Updating module...
-      run: php bin/console module:update ${{ env.IMPRESSCMS_MODULE_DIRECTORY }}
+    - name: Updating {{ inputs.addon_type }}...
+      run: php bin/console {{ inputs.addon_type }}:update ${{ env.IMPRESSCMS_ADDON_DIRECTORY }}
       working-directory: ${{ env.IMPRESSCMS_TEMP_PATH }}
 
-    - name: Uninstalling module...
-      run: php bin/console module:uninstall ${{ env.IMPRESSCMS_MODULE_DIRECTORY }}
+    - name: Uninstalling {{ inputs.addon_type }}...
+      run: php bin/console {{ inputs.addon_type }}:uninstall ${{ env.IMPRESSCMS_ADDON_DIRECTORY }}
       working-directory: ${{ env.IMPRESSCMS_TEMP_PATH }}
 
     - name: Deleting temp folder...
