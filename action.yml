@@ -95,7 +95,7 @@ runs:
 
     - name: Installing ImpressCMS...
       id: install_icms
-      uses: impresscms-dev/install-impresscms-action@feat/added-path-argument
+      uses: impresscms-dev/install-impresscms-action@v0.1.2
       with:
         database_name: ${{ inputs.database_name }}
         database_user: ${{ inputs.database_user }}
