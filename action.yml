@@ -142,7 +142,7 @@ runs:
         DB_PORT: ${{ inputs.database_port }}
         APP_KEY: ${{ steps.install_icms.outputs.app_key }}
       run: |        
-        ./bin/phpunit --testdox ${{ steps.config.outputs.addon_install_path }}
+        ./bin/phpunit --testdox ${{ steps.config.outputs.addon_install_path }}/${{ steps.config.outputs.addon_test_path }}/
       shell: bash
       working-directory: ${{ steps.config.outputs.icms_path }}
       if: ${{ steps.config.outputs.addon_test_path }} != ''
