@@ -9,7 +9,7 @@ branding:
 inputs:
   impresscms_version:
     description: "ImpressCMS version tag to test addon with"
-    default: v2.0.x
+    default: 2.0.x
     required: false
   addon_type:
     description: "Type of ImpressCMS addon"
@@ -30,9 +30,40 @@ inputs:
     description: "Extra comma separated extra PHP extensions list that is required by addon"
     default: ""
     required: false
-  mysql_version:
-    description: "MySQL version to use"
-    default: "8.0"
+  database_type:
+    description: "Database type"
+    default: pdo.mysql
+    required: false
+  database_host:
+    description: "Database host"
+    default: 127.0.0.1
+    required: false
+  database_user:
+    description: "Database user"
+    required: true
+  database_password:
+    description: "Database password"
+    default: ""
+    required: false
+  database_name:
+    description: "Database name"
+    default: icms
+    required: false
+  database_charset:
+    description: "Charset used for database"
+    default: utf8
+    required: false
+  database_collation:
+    description: "Collation used for database"
+    default: utf8_general_ci
+    required: false
+  database_prefix:
+    description: "Prefix for each ImpressCMS database table"
+    default: icms_${{ github.run_id }}_${{ github.run_attempt }}
+    required: false
+  database_port:
+    description: "Port that is used for database connection"
+    default: "3306"
     required: false
 
 runs:
@@ -44,7 +75,6 @@ runs:
       run: |
         bash ${{ github.action_path }}/bin/icms-path.sh
         bash ${{ github.action_path }}/bin/addon-info.sh "${{ inputs.addon_type }}"
-        bash ${{ github.action_path }}/bin/unused-port.sh mysql
       shell: bash
 
     - name: Installing PHP...
@@ -55,12 +85,6 @@ runs:
         ini-values: post_max_size=${{ inputs.post_max_size }}
         coverage: none
         tools: composer:v${{ inputs.composer_version }}
-
-    - name: Starting MySQL server...
-      uses: addnab/docker-run-action@v3
-      with:
-        image: mysql:${{ inputs.mysql_version }}
-        options: -d -p ${{ steps.config.outputs.mysql_port }}:3306 -e MYSQL_ROOT_PASSWORD=icms -e MYSQL_DATABASE=icms --name mysql_server_${{ steps.config.outputs.mysql_port }}
 
     - name: Creating ImpressCMS project...
       run: |
@@ -73,11 +97,15 @@ runs:
       id: install_icms
       uses: impresscms-dev/install-impresscms-action@v0.1.1
       with:
-        database_name: icms
-        database_user: root
-        database_password: icms
-        database_port: ${{ steps.config.outputs.mysql_port }}
-        database_prefix: icms
+        database_name: ${{ inputs.database_name }}
+        database_user: ${{ inputs.database_user }}
+        database_password: ${{ inputs.database_password }}
+        database_port: ${{ inputs.database_port }}
+        database_type: ${{ inputs.database_type }}
+        database_charset: ${{ inputs.database_charset }}
+        database_collation: ${{ inputs.database_collation }}
+        database_prefix: ${{ inputs.database_prefix }}
+        database_host: ${{ inputs.database_host }}
       working-directory: ${{ steps.config.outputs.icms_path }}
 
     - name: Adding local composer repo...
@@ -93,17 +121,28 @@ runs:
       shell: bash
       if: steps.config.outputs.addon_installation_type == 'legacy'
 
-    - name: Installing composer {{ inputs.addon_type }}...
+    - name: Installing addon with composer {{ inputs.addon_type }}...
       run: composer require ${{ steps.config.outputs.addon_name }}
       shell: bash
       if: steps.config.outputs.addon_installation_type == 'composer'
       working-directory: ${{ steps.config.outputs.icms_path }}
 
-    - name: Testing with PHPUnit
-      run: |
-        bash ${{ github.action_path }}/bin/test.sh \
-          ${{ steps.config.outputs.mysql_port }} \
-          "${{ steps.config.outputs.addon_install_path }}"
+    - name: Testing with PHPUnit...
+      env:
+        URL: http://localhost
+        DB_TYPE: ${{ inputs.database_type }}
+        DB_HOST: ${{ inputs.database_host }}
+        DB_USER: ${{ inputs.database_user }}
+        DB_PASS: ${{ inputs.database_password }}
+        DB_PCONNECT: "0"
+        DB_NAME: ${{ inputs.database_name }}
+        DB_CHARSET: ${{ inputs.database_charset }}
+        DB_COLLATION: ${{ inputs.database_collation }}
+        DB_PREFIX: ${{ inputs.database_prefix }}
+        DB_PORT: ${{ inputs.database_port }}
+        APP_KEY: ${{ steps.install_icms.outputs.app_key }}
+      run: |        
+        ./bin/phpunit --testdox ${{ steps.config.outputs.addon_install_path }}
       shell: bash
       working-directory: ${{ steps.config.outputs.icms_path }}
       if: ${{ steps.config.outputs.addon_test_path }} != ''
@@ -117,11 +156,6 @@ runs:
       run: php bin/console {{ inputs.addon_type }}:uninstall ${{ steps.config.outputs.addon_dir }}
       shell: bash
       working-directory: ${{ steps.config.outputs.icms_path }}
-
-    - name: Stopping MySQL server...
-      run: docker rm --force mysql_server_${{ steps.config.outputs.mysql_port }}
-      shell: bash
-      continue-on-error: true
 
     - name: Deleting temp folder...
       run: rm -rf "${{ steps.config.outputs.icms_path }}" || true
