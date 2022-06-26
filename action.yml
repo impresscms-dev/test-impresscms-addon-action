@@ -1,5 +1,5 @@
 name: 'Test ImpressCMS addon'
-description: 'About GitHub action that tries to help to test ImpressCMS addon'
+description: 'GitHub action that tries to help to test ImpressCMS addon'
 
 # https://actions-cool.github.io/github-action-branding/
 branding:
