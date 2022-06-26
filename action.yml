@@ -84,12 +84,6 @@ runs:
       run: bash ${{ github.action_path }}/bin/new-local-repo.sh "${{ steps.config.outputs.icms_path }}"
       shell: bash
 
-    - name: Copying legacy {{ inputs.addon_type }}...
-      run: cp "${{ github.workspace }}"/* ./{{ inputs.addon_type }}s/$IMPRESSCMS_ADDON_DIRECTORY/
-      shell: bash
-      if: steps.config.outputs.addon_installation_type == 'legacy'
-      working-directory: ${{ steps.config.outputs.icms_path }}
-
     - name: Installing legacy addon...
       run: |
         bash ${{ github.action_path }}/bin/install-legacy-addon.sh \
