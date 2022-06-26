@@ -147,17 +147,43 @@ runs:
       working-directory: ${{ steps.config.outputs.icms_path }}
       if: ${{ steps.config.outputs.addon_test_path }} != ''
 
-    - name: Updating addon...
-      run: php bin/console ${{ steps.config.outputs.addon_type }}:update ${{ steps.config.outputs.addon_dir }}
+    - name: Updating module...
+      env:
+        URL: http://localhost
+        DB_TYPE: ${{ inputs.database_type }}
+        DB_HOST: ${{ inputs.database_host }}
+        DB_USER: ${{ inputs.database_user }}
+        DB_PASS: ${{ inputs.database_password }}
+        DB_PCONNECT: "0"
+        DB_NAME: ${{ inputs.database_name }}
+        DB_CHARSET: ${{ inputs.database_charset }}
+        DB_COLLATION: ${{ inputs.database_collation }}
+        DB_PREFIX: ${{ inputs.database_prefix }}
+        DB_PORT: ${{ inputs.database_port }}
+        APP_KEY: ${{ steps.install_icms.outputs.app_key }}
+      run: php bin/console module:update ${{ steps.config.outputs.addon_dir }}
       shell: bash
       working-directory: ${{ steps.config.outputs.icms_path }}
-      if: steps.config.outputs.addon_type != 'translation'
+      if: steps.config.outputs.addon_type == 'module'
 
-    - name: Uninstalling addon...
-      run: php bin/console ${{ steps.config.outputs.addon_type }}:uninstall ${{ steps.config.outputs.addon_dir }}
+    - name: Uninstalling module...
+      env:
+        URL: http://localhost
+        DB_TYPE: ${{ inputs.database_type }}
+        DB_HOST: ${{ inputs.database_host }}
+        DB_USER: ${{ inputs.database_user }}
+        DB_PASS: ${{ inputs.database_password }}
+        DB_PCONNECT: "0"
+        DB_NAME: ${{ inputs.database_name }}
+        DB_CHARSET: ${{ inputs.database_charset }}
+        DB_COLLATION: ${{ inputs.database_collation }}
+        DB_PREFIX: ${{ inputs.database_prefix }}
+        DB_PORT: ${{ inputs.database_port }}
+        APP_KEY: ${{ steps.install_icms.outputs.app_key }}
+      run: php bin/console module:uninstall ${{ steps.config.outputs.addon_dir }}
       shell: bash
       working-directory: ${{ steps.config.outputs.icms_path }}
-      if: steps.config.outputs.addon_type != 'translation'
+      if: steps.config.outputs.addon_type == 'module'
 
     - name: Deleting temp folder...
       run: rm -rf "${{ steps.config.outputs.icms_path }}" || true
