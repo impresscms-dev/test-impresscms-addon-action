@@ -127,6 +127,7 @@ runs:
     - name: Stopping MySQL server...
       run: docker rm --force mysql_server_${{ steps.config.outputs.mysql_port }}
       shell: bash
+      continue-on-error: true
 
     - name: Deleting temp folder...
       run: rm -rf "${{ steps.config.outputs.icms_path }}" || true
