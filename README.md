@@ -13,7 +13,7 @@ To use this action in your project, create workflow in your project similar to t
 needs to be altered):
 
 ```yaml
-name: Test ImpressCMS
+name: Tests
 
 on:
   push:
