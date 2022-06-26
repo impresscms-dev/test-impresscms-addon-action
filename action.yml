@@ -9,52 +9,46 @@ branding:
 inputs:
   impresscms_version:
     description: "ImpressCMS version tag to test addon with"
-    default: v2.0.0-alpha.12
+    default: v2.0.x
     required: false
   addon_type:
     description: "Type of ImpressCMS addon"
     required: false
   php_version:
     description: "PHP version to use"
-    default: 7.4
+    default: "7.4"
+    required: false
   composer_version:
     description: "PHP composer version to use for test"
-    default: 2
+    default: "2"
     required: false
   post_max_size:
     description: "Max post file size"
     default: 256M
     required: false
   extra_php_extensions:
-    descriptions: "Extra comma separated extra PHP extensions list that is required by addon"
+    description: "Extra comma separated extra PHP extensions list that is required by addon"
     default: ""
     required: false
   mysql_version:
     description: "MySQL version to use"
-    default: 8.0
+    default: "8.0"
     required: false
 
 runs:
   using: 'composite'
 
-  services:
-    mysql:
-      image: mysql:${{ inputs.mysql_version }}
-      env:
-        MYSQL_ROOT_PASSWORD: icms
-        MYSQL_DATABASE: icms
-      ports:
-        - 3306
-      options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
-
   steps:
-    - name: Setting IMPRESSCMS_TEMP_PATH ENV var...
+    - name: Configuring...
+      id: config
       run: |
-        echo "IMPRESSCMS_TEMP_PATH=${{ runner.temp }}/icmsweb-${{ github.sha }}-${{ github.run_id}}-${{ github.github.run_attempt }}" >> $GITHUB_ENV
+        bash ${{ github.action_path }}/bin/icms-path.sh
+        bash ${{ github.action_path }}/bin/addon-info.sh "${{ inputs.addon_type }}"
+        bash ${{ github.action_path }}/bin/unused-port.sh mysql
       shell: bash
 
-    - name: Install PHP
-      uses: shivammathur/setup-php@master
+    - name: Installing PHP...
+      uses: shivammathur/setup-php@2.3.1
       with:
         php-version: ${{ inputs.php_version }}
         extensions: curl, gd, pdo_mysql, json, mbstring, pcre, session, ${{ inputs.extra_php_extensions }}
@@ -62,109 +56,79 @@ runs:
         coverage: none
         tools: composer:v${{ inputs.composer_version }}
 
+    - name: Starting MySQL server...
+      uses: addnab/docker-run-action@v3
+      with:
+        image: mysql:${{ inputs.mysql_version }}
+        options: -d -p ${{ steps.config.outputs.mysql_port }}:3306 -e MYSQL_ROOT_PASSWORD=icms -e MYSQL_DATABASE=icms --name mysql_server_${{ steps.config.outputs.mysql_port }}
+
     - name: Creating ImpressCMS project...
-      run: composer create-project --stability=dev impresscms/impresscms "${{ env.IMPRESSCMS_TEMP_PATH }}" ${{ inputs.impresscms_version }}
-      shell: bash
-
-    - name: Install Composer dependencies (with dev)
-      run: composer install --no-progress --no-suggest --prefer-dist --optimize-autoloader
-      shell: bash
-      working-directory: ${{ env.IMPRESSCMS_TEMP_PATH }}
-
-    - name: Installing ImpressCMS
-      env:
-        URL: http://localhost
-        DB_TYPE: pdo.mysql
-        DB_HOST: 127.0.0.1
-        DB_USER: root
-        DB_PASS: icms
-        DB_PCONNECT: 0
-        DB_NAME: icms
-        DB_CHARSET: utf8
-        DB_COLLATION: utf8_general_ci
-        DB_PREFIX: icms
-        DB_PORT: ${{ job.services.mysql.ports['3306'] }}
-        INSTALL_ADMIN_PASS: test
-        INSTALL_ADMIN_LOGIN: test
-        INSTALL_ADMIN_NAME: test
-        INSTALL_ADMIN_EMAIL: noreply@impresscms.org
-        INSTALL_LANGUAGE: english
       run: |
-        chmod -R 777 ./storage
-        ./bin/phoenix migrate -vvv
-      working-directory: ${{ env.IMPRESSCMS_TEMP_PATH }}
+        bash ${{ github.action_path }}/bin/create-project.sh \
+          "${{ steps.config.outputs.icms_path }}" \
+          ${{ inputs.impresscms_version }}
       shell: bash
+
+    - name: Installing ImpressCMS...
+      id: install_icms
+      uses: impresscms-dev/install-impresscms-action@v0.1.1
+      with:
+        database_name: icms
+        database_user: root
+        database_password: icms
+        database_port: ${{ steps.config.outputs.mysql_port }}
+        database_prefix: icms
+      working-directory: ${{ steps.config.outputs.icms_path }}
 
     - name: Adding local composer repo...
-      run: "composer config repositories.local_addon '{\"type\": \"path\",\"url\": \"${{ github.workspace }}\"}'"
-      shell: bash
-      working-directory: ${{ env.IMPRESSCMS_TEMP_PATH }}
-
-    - name: Generating APP_KEY...
-      run: |
-        echo "APP_KEY=`php ./bin/console generate:app:key`" >> $GITHUB_ENV
-      shell: bash
-      working-directory: ${{ env.IMPRESSCMS_TEMP_PATH }}
-
-    - name: Getting {{ inputs.addon_type }} package name...
-      run: |
-        if [ -f "composer.json" ]; then
-          echo "IMPRESSCMS_ADDON_NAME=$(composer config name)" >> $GITHUB_ENV
-          echo "IMPRESSCMS_ADDON_TYPE=composer" >> $GITHUB_ENV
-        else
-          echo "IMPRESSCMS_ADDON_TYPE=legacy" >> $GITHUB_ENV
-        fi;
-        echo "IMPRESSCMS_ADDON_DIRECTORY=${PWD##*/}" >> $GITHUB_ENV
-        if [ -d "tests" ]; then
-          echo "IMPRESSCMS_TEST_FOLDER=./tests/" >> $GITHUB_ENV
-        elif [ -d "test" ]; then
-          echo "IMPRESSCMS_TEST_FOLDER=./test/" >> $GITHUB_ENV
-        fi;
+      run: bash ${{ github.action_path }}/bin/new-local-repo.sh "${{ steps.config.outputs.icms_path }}"
       shell: bash
 
     - name: Copying legacy {{ inputs.addon_type }}...
       run: cp "${{ github.workspace }}"/* ./{{ inputs.addon_type }}s/$IMPRESSCMS_ADDON_DIRECTORY/
       shell: bash
-      if: env.IMPRESSCMS_ADDON_TYPE == 'legacy'
-      working-directory: ${{ env.IMPRESSCMS_TEMP_PATH }}
+      if: steps.config.outputs.addon_installation_type == 'legacy'
+      working-directory: ${{ steps.config.outputs.icms_path }}
 
-    - name: Installing legacy {{ inputs.addon_type }}...
-      run: php bin/console {{ inputs.addon_type }}:install ${{ env.IMPRESSCMS_ADDON_DIRECTORY }}
-      if: env.IMPRESSCMS_ADDON_TYPE == 'legacy'
-      working-directory: ${{ env.IMPRESSCMS_TEMP_PATH }}
+    - name: Installing legacy addon...
+      run: |
+        bash ${{ github.action_path }}/bin/install-legacy-addon.sh \
+          "${{ steps.config.outputs.addon_type }}" \
+          "${{ steps.config.outputs.addon_dir }}" \
+          "${{ steps.config.outputs.addon_install_path }}"
+      shell: bash
+      if: steps.config.outputs.addon_installation_type == 'legacy'
 
     - name: Installing composer {{ inputs.addon_type }}...
-      run: composer require ${{ env.IMPRESSCMS_ADDON_NAME }}
-      if: env.IMPRESSCMS_ADDON_TYPE == 'composer'
-      working-directory: ${{ env.IMPRESSCMS_TEMP_PATH }}
+      run: composer require ${{ steps.config.outputs.addon_name }}
+      shell: bash
+      if: steps.config.outputs.addon_installation_type == 'composer'
+      working-directory: ${{ steps.config.outputs.icms_path }}
 
     - name: Testing with PHPUnit
-      env:
-        URL: http://localhost
-        DB_TYPE: pdo.mysql
-        DB_HOST: 127.0.0.1
-        DB_USER: root
-        DB_PASS: icms
-        DB_PCONNECT: 0
-        DB_NAME: icms
-        DB_CHARSET: utf8
-        DB_COLLATION: utf8_general_ci
-        DB_PREFIX: icms
-        DB_PORT: ${{ job.services.mysql.ports['3306'] }}
-      run: |        
-        ./bin/phpunit --testdox $IMPRESSCMS_TEST_FOLDER
+      run: |
+        bash ${{ github.action_path }}/bin/test.sh \
+          ${{ steps.config.outputs.mysql_port }} \
+          "${{ steps.config.outputs.addon_install_path }}"
       shell: bash
-      working-directory: ${{ env.IMPRESSCMS_TEMP_PATH }}
-      if: env.IMPRESSCMS_TEST_FOLDER != ''
+      working-directory: ${{ steps.config.outputs.icms_path }}
+      if: ${{ steps.config.outputs.addon_test_path }} != ''
 
-    - name: Updating {{ inputs.addon_type }}...
-      run: php bin/console {{ inputs.addon_type }}:update ${{ env.IMPRESSCMS_ADDON_DIRECTORY }}
-      working-directory: ${{ env.IMPRESSCMS_TEMP_PATH }}
+    - name: Updating addon...
+      run: php bin/console {{ inputs.addon_type }}:update ${{ steps.config.outputs.addon_dir }}
+      shell: bash
+      working-directory: ${{ steps.config.outputs.icms_path }}
 
-    - name: Uninstalling {{ inputs.addon_type }}...
-      run: php bin/console {{ inputs.addon_type }}:uninstall ${{ env.IMPRESSCMS_ADDON_DIRECTORY }}
-      working-directory: ${{ env.IMPRESSCMS_TEMP_PATH }}
+    - name: Uninstalling addon...
+      run: php bin/console {{ inputs.addon_type }}:uninstall ${{ steps.config.outputs.addon_dir }}
+      shell: bash
+      working-directory: ${{ steps.config.outputs.icms_path }}
+
+    - name: Stopping MySQL server...
+      run: docker rm --force mysql_server_${{ steps.config.outputs.mysql_port }}
+      shell: bash
 
     - name: Deleting temp folder...
-      run: rm -rf "${{ env.IMPRESSCMS_TEMP_PATH }}" || true
+      run: rm -rf "${{ steps.config.outputs.icms_path }}" || true
       shell: bash
+      continue-on-error: true
