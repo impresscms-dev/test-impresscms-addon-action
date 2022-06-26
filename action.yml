@@ -121,7 +121,7 @@ runs:
       shell: bash
       if: steps.config.outputs.addon_installation_type == 'legacy'
 
-    - name: Installing addon with composer {{ inputs.addon_type }}...
+    - name: Installing addon with composer...
       run: composer require ${{ steps.config.outputs.addon_name }}
       shell: bash
       if: steps.config.outputs.addon_installation_type == 'composer'
@@ -148,14 +148,16 @@ runs:
       if: ${{ steps.config.outputs.addon_test_path }} != ''
 
     - name: Updating addon...
-      run: php bin/console {{ inputs.addon_type }}:update ${{ steps.config.outputs.addon_dir }}
+      run: php bin/console ${{ steps.config.outputs.addon_type }}:update ${{ steps.config.outputs.addon_dir }}
       shell: bash
       working-directory: ${{ steps.config.outputs.icms_path }}
+      if: steps.config.outputs.addon_type != 'translation'
 
     - name: Uninstalling addon...
-      run: php bin/console {{ inputs.addon_type }}:uninstall ${{ steps.config.outputs.addon_dir }}
+      run: php bin/console ${{ steps.config.outputs.addon_type }}:uninstall ${{ steps.config.outputs.addon_dir }}
       shell: bash
       working-directory: ${{ steps.config.outputs.icms_path }}
+      if: steps.config.outputs.addon_type != 'translation'
 
     - name: Deleting temp folder...
       run: rm -rf "${{ steps.config.outputs.icms_path }}" || true

@@ -5,3 +5,5 @@ if [ -d "tests" ]; then
 elif [ -d "test" ]; then
   echo "./test/"
 fi;
+
+echo '';
