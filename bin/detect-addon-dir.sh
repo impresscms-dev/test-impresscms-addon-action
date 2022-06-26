@@ -10,7 +10,7 @@ if [ "$ADDON_INSTALL_TYPE" != "composer" ]; then
 fi
 
 if [ "$ADDON_TYPE" != "translation" ]; then
-  php "${GITHUB_ACTION_PATH}/detect-${ADDON_TYPE}-dir.php" "$ADDON_DIR"
+  php "${GITHUB_ACTION_PATH}/bin/detect-${ADDON_TYPE}-dir.php" "$ADDON_DIR"
 else
   composer config extra.language
 fi
