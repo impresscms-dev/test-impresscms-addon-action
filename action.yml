@@ -95,7 +95,7 @@ runs:
 
     - name: Installing ImpressCMS...
       id: install_icms
-      uses: impresscms-dev/install-impresscms-action@v0.1.1
+      uses: impresscms-dev/install-impresscms-action@feat/added-path-argument
       with:
         database_name: ${{ inputs.database_name }}
         database_user: ${{ inputs.database_user }}
@@ -106,7 +106,7 @@ runs:
         database_collation: ${{ inputs.database_collation }}
         database_prefix: ${{ inputs.database_prefix }}
         database_host: ${{ inputs.database_host }}
-      working-directory: ${{ steps.config.outputs.icms_path }}
+        path: ${{ steps.config.outputs.icms_path }}
 
     - name: Adding local composer repo...
       run: bash ${{ github.action_path }}/bin/new-local-repo.sh "${{ steps.config.outputs.icms_path }}"
