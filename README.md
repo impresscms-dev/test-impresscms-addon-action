@@ -1,7 +1,7 @@
 [![License](https://img.shields.io/github/license/impresscms-dev/test-impresscms-addon-action.svg)](LICENSE)
 [![GitHub release](https://img.shields.io/github/release/impresscms-dev/test-impresscms-addon-action.svg)](https://github.com/impresscms-dev/test-impresscms-addon-action/releases)
 
-# Install ImpressCMS
+# Test ImpressCMS AddOn Action
 
 GitHub action to test [ImpressCMS](https://github.com/ImpressCMS/impresscms) addon (theme, module, translation).
 
@@ -13,7 +13,7 @@ To use this action in your project, create workflow in your project similar to t
 needs to be altered):
 
 ```yaml
-name: Test ImpressCMS
+name: Tests
 
 on:
   push:
