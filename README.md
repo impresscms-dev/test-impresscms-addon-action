@@ -89,6 +89,7 @@ This action supports such arguments (used in `with` keyword):
 | database_collation | No       | utf8_general_ci                | Collation used for database                                                                     |
 | database_prefix | No       | *icms_{run_id}_{run_attemnpt}* | Prefix for each ImpressCMS database table                                                       |
 | database_port | No       | 3306                           | Port that is used for database connection                                                       |
+| addon_requirements_update | No | false | Set this to true to allow addon required other packages to be autoupdated on install |
 
 ## How to contribute?
 

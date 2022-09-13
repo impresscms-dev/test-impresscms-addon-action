@@ -65,6 +65,10 @@ inputs:
     description: "Port that is used for database connection"
     default: "3306"
     required: false
+  addon_requirements_update:
+    description: "Set this to true to allow addon required other packages to be autoupdated on install"
+    default: "false"
+    required: false
 
 runs:
   using: 'composite'
@@ -122,7 +126,12 @@ runs:
       if: steps.config.outputs.addon_installation_type == 'legacy'
 
     - name: Installing addon with composer...
-      run: composer require ${{ steps.config.outputs.addon_name }}
+      run: |
+        if [ "${{ inputs.addon_requirements_update }}" == "true" ]; then
+          composer require -W ${{ steps.config.outputs.addon_name }}
+        else
+          composer require ${{ steps.config.outputs.addon_name }}
+        fi;          
       shell: bash
       if: steps.config.outputs.addon_installation_type == 'composer'
       working-directory: ${{ steps.config.outputs.icms_path }}
