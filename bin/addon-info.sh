@@ -3,7 +3,7 @@
 ADDON_TYPE="$1"
 
 if [ -f "composer.json" ]; then
-  echo "::set-output name=addon_name::$(composer config name)"
+  echo "addon_name=$(composer config name)" >> $GITHUB_OUTPUT
   ADDON_INSTALL_TYPE=composer
   DETECTED_TYPE=$(composer config type)
 else
@@ -16,9 +16,9 @@ ADDON_DIR=$(bash "$GITHUB_ACTION_PATH/bin/detect-addon-dir.sh" "$ADDON_INSTALL_T
 ADDON_TEST_PATH=$(bash "$GITHUB_ACTION_PATH/bin/detect-tests-path.sh")
 ADDON_TYPE_PATH=$(bash "$GITHUB_ACTION_PATH/bin/detect-addon-type-path.sh" "$REAL_ADDON_TYPE")
 
-echo "::set-output name=addon_dir::$ADDON_DIR"
-echo "::set-output name=addon_test_path::$ADDON_TEST_PATH"
-echo "::set-output name=addon_type::$REAL_ADDON_TYPE"
-echo "::set-output name=addon_type_path::$ADDON_TYPE_PATH"
-echo "::set-output name=addon_installation_type::$ADDON_INSTALL_TYPE"
-echo "::set-output name=addon_install_path::$ADDON_TYPE_PATH/$ADDON_DIR"
+echo "addon_dir=$ADDON_DIR" >> $GITHUB_OUTPUT
+echo "addon_test_path=$ADDON_TEST_PATH" >> $GITHUB_OUTPUT
+echo "addon_type=$REAL_ADDON_TYPE" >> $GITHUB_OUTPUT
+echo "addon_type_path=$ADDON_TYPE_PATH" >> $GITHUB_OUTPUT
+echo "addon_installation_type=$ADDON_INSTALL_TYPE" >> $GITHUB_OUTPUT
+echo "addon_install_path=$ADDON_TYPE_PATH/$ADDON_DIR" >> $GITHUB_OUTPUT
