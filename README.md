@@ -74,7 +74,7 @@ This action supports such arguments (used in `with` keyword):
 
 | Argument | Required | Default value                  | Description                                                                                     |
 |----------|----------|--------------------------------|-------------------------------------------------------------------------------------------------|
-| impresscms_version  | No       | 2.0.x                          | ImpressCMS version tag to test addon with                                                       |
+| impresscms_version  | No       | TNG                          | ImpressCMS version tag to test addon with                                                       |
 | addon_type  | No       |                                | If not specified, add on type will be autodetected. Possible values: module, theme, translation |
 | php_version  | No       | 7.4                            | PHP version to use for tests                                                                    |
 | composer_version  | No       | 2                              | Composer version to use for tests                                                               |
