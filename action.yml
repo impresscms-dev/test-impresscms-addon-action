@@ -9,7 +9,7 @@ branding:
 inputs:
   impresscms_version:
     description: "ImpressCMS version tag to test addon with"
-    default: 2.0.x
+    default: TNG
     required: false
   addon_type:
     description: "Type of ImpressCMS addon"
