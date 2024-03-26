@@ -35,7 +35,7 @@ jobs:
           - mysql:5.6
           - mariadb:10.1
         impresscms_version:
-          - 2.0.x
+          - dev-TNG
         composer_version:
           - 2
 
@@ -74,7 +74,7 @@ This action supports such arguments (used in `with` keyword):
 
 | Argument | Required | Default value                  | Description                                                                                     |
 |----------|----------|--------------------------------|-------------------------------------------------------------------------------------------------|
-| impresscms_version  | No       | TNG                          | ImpressCMS version tag to test addon with                                                       |
+| impresscms_version  | No       | dev-TNG             | ImpressCMS version tag to test addon with                                                       |
 | addon_type  | No       |                                | If not specified, add on type will be autodetected. Possible values: module, theme, translation |
 | php_version  | No       | 7.4                            | PHP version to use for tests                                                                    |
 | composer_version  | No       | 2                              | Composer version to use for tests                                                               |
