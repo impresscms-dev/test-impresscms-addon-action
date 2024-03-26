@@ -27,10 +27,10 @@ jobs:
         os:
           - ubuntu-latest
         php:
-          - 7.3
-          - 7.4
           - 8.0
           - 8.1
+          - 8.2
+          - 8.3
         database:
           - mysql:5.6
           - mariadb:10.1
