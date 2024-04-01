@@ -82,7 +82,7 @@ runs:
       shell: bash
 
     - name: Installing PHP...
-      uses: shivammathur/setup-php@2.29.0
+      uses: shivammathur/setup-php@2.30.2
       with:
         php-version: ${{ inputs.php_version }}
         extensions: curl, gd, pdo_mysql, json, mbstring, pcre, session, ${{ inputs.extra_php_extensions }}
